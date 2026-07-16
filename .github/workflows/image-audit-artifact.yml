@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install Pillow
         run: python3 -m pip install --disable-pip-version-check pillow
       - name: Build sanitized audit output
@@ -23,7 +23,7 @@ jobs:
             --json-report audit-output/image-audit-report.json \
             --contact-sheet audit-output/contact-sheet.png
       - name: Preserve audit output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sanitized-image-audit
           path: audit-output/
