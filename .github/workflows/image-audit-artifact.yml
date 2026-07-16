@@ -1,0 +1,31 @@
+name: Image audit artifact
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Pillow
+        run: python3 -m pip install --disable-pip-version-check pillow
+      - name: Build sanitized audit output
+        run: |
+          python3 tools/image_audit.py \
+            --sanitize-output audit-output/sanitized \
+            --report-file audit-output/image-audit-report.txt \
+            --json-report audit-output/image-audit-report.json \
+            --contact-sheet audit-output/contact-sheet.png
+      - name: Preserve audit output
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitized-image-audit
+          path: audit-output/
+          if-no-files-found: error
+          retention-days: 7

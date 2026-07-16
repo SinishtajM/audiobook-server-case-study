@@ -1,0 +1,65 @@
+name: Repository validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate documentation, scripts, and images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+          python3 -m pip install --disable-pip-version-check pillow
+
+      - name: Compile Python validation tools
+        run: python3 -m compileall -q tools
+
+      - name: Validate Bash syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r -d '' script; do
+            found=1
+            echo "Checking syntax: $script"
+            bash -n "$script"
+          done < <(find scripts -type f -name '*.sh' -print0)
+          if (( found == 0 )); then
+            echo "No shell scripts were found under scripts/." >&2
+            exit 1
+          fi
+
+      - name: Run ShellCheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' scripts < <(find scripts -type f -name '*.sh' -print0)
+          shellcheck --severity=warning --exclude=SC2015 "${scripts[@]}"
+
+      - name: Validate repository structure and sanitization
+        run: python3 tools/validate_repository.py
+
+      - name: Validate image integrity and metadata
+        run: |
+          python3 tools/image_audit.py \
+            --check \
+            --report-file audit-output/image-audit-report.txt \
+            --json-report audit-output/image-audit-report.json
